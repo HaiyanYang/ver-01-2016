@@ -3,7 +3,7 @@ use edge_list_module, only: edge_list
                                       
   integer :: nedge=0                  
                                       
-  nedge=13362              
+  nedge=132              
   allocate(edge_list(nedge))          
 
 end subroutine set_fnm_edges

@@ -139,7 +139,7 @@ subroutine uel(rhs,amatrx,svars,energy,ndofel,nrhs,nsvars, &
  &       lflags,mlvarx,ddlmag,mdload,pnewdt,jprops,njprop,period)
 ! load FNM modules
 use parameter_module,     only: NDIM, DP, ZERO, MSG_FILE, MSGLENGTH, STAT_SUCCESS, &
-                                & STAT_FAILURE, EXIT_FUNCTION
+                                & STAT_FAILURE, EXIT_FUNCTION, JELEM0
 use fnode_module,         only: fnode, update
 use fedge_module,         only: fedge
 use node_list_module,     only: node_list
@@ -173,6 +173,7 @@ use output_module
   integer,    allocatable :: edge_cnc(:)
   integer                 :: predelam
   integer                 :: j
+  integer                 :: ajelem
   character(len=10)       :: cjelem
 
   amatrx    = ZERO
@@ -186,6 +187,13 @@ use output_module
   predelam  = 0
   j         = 0
   write(cjelem,'(i5)') jelem
+  
+  ! update JELEM0 at first run
+  if (JELEM0 == 0) then
+    JELEM0 = jelem
+  end if
+  ! adjusted jelem
+  ajelem = jelem - JELEM0 + 1
   
 !~  ! check input validity during first run
 !~  if (kstep == 1 .and. kinc == 1) then
@@ -236,14 +244,31 @@ use output_module
 !~    end if
 !~  end if
 
+  ! debug
+  ! open a file 
+  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+  write(110,'(1X, a)')'reach mark a'//trim(cjelem)
+  close(110)
  
   ! extract the node connec of this elem
-  node_cnc(:) = elem_node_connec(:,jelem)
+  node_cnc(:) = elem_node_connec(:,ajelem)
+  
+  ! debug
+  ! open a file 
+  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+  write(110,'(1X, a)')'reach mark b'//trim(cjelem)
+  close(110)
   
   ! extract the edge connec of this elem
-  nedge = size(elem_edge_connec(:,jelem))
+  nedge = size(elem_edge_connec(:,ajelem))
   allocate(edge_cnc(nedge))
-  edge_cnc(:) = elem_edge_connec(:,jelem)
+  edge_cnc(:) = elem_edge_connec(:,ajelem)
+  
+  ! debug
+  ! open a file 
+  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+  write(110,'(1X, a)')'reach mark c'//trim(cjelem)
+  close(110)
 
   ! extract passed-in nodal solutions obtained by Abaqus Solver
   do j=1, nnode
@@ -254,9 +279,21 @@ use output_module
   do j=1, nnode
     call update(node_list(node_cnc(j)),u=uj(:,j))
   end do
+  
+  ! debug
+  ! open a file 
+  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+  write(110,'(1X, a)')'reach mark d'//trim(cjelem)
+  close(110)
 
   ! extract nodes and edge status from global node and edge lists
   nodes = node_list(node_cnc)
+  ! debug
+  ! open a file 
+  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+  write(110,'(1X, a)')'reach mark e'//trim(cjelem)
+  close(110)
+  
   allocate(edges(nedge))
   edges = edge_list(edge_cnc)
   
@@ -273,11 +310,11 @@ use output_module
   ! if so, update variable predelam
   ! predelam default value = 0
   if (allocated(predelam_elems)) then
-    if ( any ( predelam_elems == jelem ) ) predelam = predelam_interf 
+    if ( any ( predelam_elems == ajelem ) ) predelam = predelam_interf 
   end if
 
   ! integrate this element. elem_list(jelem)
-  call integrate (elem_list(jelem), nodes, edges, layup, UDSinglePly_material, &
+  call integrate (elem_list(ajelem), nodes, edges, layup, UDSinglePly_material, &
   &  matrixCrack_material, interface_material, Kmat, Fvec, istat, emsg, predelam)
   if (istat == STAT_FAILURE) then
     emsg = trim(emsg)//trim(msgloc)//trim(cjelem)
@@ -285,7 +322,7 @@ use output_module
     !** debug **
     node_list(node_cnc) = nodes
     edge_list(edge_cnc) = edges
-    call output(kstep,jelem*10000+kinc,outdir)
+    call output(kstep,ajelem*10000+kinc,outdir)
     !***********
     call cleanup_all
     call EXIT_FUNCTION

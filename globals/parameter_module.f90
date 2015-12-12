@@ -2,6 +2,10 @@ MODULE PARAMETER_MODULE ! USEFUL CONSTANTS FOR ALL SUBROUTINES & ALL ELEMENTS
 
 IMPLICIT NONE
 
+! starting jelem no. of abaqus
+INTEGER, SAVE :: JELEM0 = 0
+
+
 ! COMMON PARAMETERS ************************************************************
 
 

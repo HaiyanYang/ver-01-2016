@@ -448,9 +448,6 @@ for jp in jparts:
 #==================================================
 # read assembly section:
 # - only a single assembly is supported
-# - multiple instances are supported
-# - multiple nsets/elsets (including predelam elset) are supported
-# - 'generate' operation is supported
 #==================================================
 assembly = []
 
@@ -470,6 +467,22 @@ for j in range(ja,lenAll):
 #print(assembly)
 
 #==================================================
+# read material section:
+#==================================================
+materials = []
+
+# find the line no. of *Material and store in materials
+jmaterials = [j for j,line in enumerate(All_lines) if '*Material' in line]
+
+# copy everything of the material
+for jm in jmaterials:
+    for j in range(jm,lenAll):
+        jline = All_lines[j]
+        materials.append(jline)
+        if '**' in jline:
+            break
+
+#==================================================
 # read (fixed) boundary section:
 #==================================================
 bcds  = []    # list of all boundary conditions
@@ -483,9 +496,9 @@ jbcds = [j for j in range(0,jdash) if '*Boundary' in All_lines[j]]
 
 # loop over all bcds, store them without modification
 for jb in jbcds:
-    for k in range(jb+1,jdash):
+    for k in range(jb,jdash):
         bline = All_lines[k]
-        if ('*' in bline):
+        if ('**' in bline):
             break
         bcds.append(bline)
 #print(bcds)
@@ -879,75 +892,13 @@ uel_input.write('*End Part\n')
 #**** write ASSEMBLY ****
 for aline in assembly:
     uel_input.write(str(aline[0:]))
-
-#assbl = assemblies[0]
-## assembly name line
-#uel_input.write(assbl.name+'\n')
-## assembly instance lines
-#for inst in assbl.instances:
-#    uel_input.write(inst.name+'\n')
-#    uel_input.write('*End Instance\n')
-## assembly nsets
-#for nst in assbl.nsets:
-#    # write the nst name
-#    uel_input.write(nst.name+'\n')
-#    # nst dataline for uel_input, to be filled, and line count initiated
-#    nstline = ['']
-#    cntr    = 0
-#    # find the part this nst is based on
-#    for prt in parts:
-#        if (prt.name in nst.name):
-#            nstprt = prt
-#    # if all the real nodes in this nst are on the bot surface, then
-#    # only store the bot plyblk nodes, DO NOT include the other plies
-#    if all(n in fnmparts[-1].botrnds for n in nst.rnodes):
-#        pstart = 0
-#        pend   = 1
-#    # if all the real nodes in this nst are on the top surface, then
-#    # only store the top plyblk nodes, DO NOT include the other plies
-#    elif all(n in fnmparts[-1].toprnds for n in nst.rnodes):
-#        pstart = nplyblk-1
-#        pend   = nplyblk
-#    else:
-#        pstart = 0
-#        pend   = nplyblk
-#    # find nst nodes in plyblks
-#    for jpb in range(pstart,pend):
-#        # add the real nodes to the list one by one
-#        for n in nst.rnodes:
-#            # find the corresponding node on the jpb-th plyblk
-#            k = n + jpb * nnode_p
-#            # if the uel line gets too long, continue on the next line
-#            if (len(nstline[-1]+str(k)) >= uellinelength) or \
-#               (cntr >= uellinecount):
-#                nstline.append('')
-#                cntr = 0
-#            # add the node no. to the line and update line count
-#            nstline[-1] = nstline[-1]+str(k)+','
-#            cntr        = cntr + 1
-#        # add the fl. nodes to the list one by one
-#        for eg in nst.edges:
-#            k1 = nstprt.edges[eg-1].nodes[2] + jpb * nnode_p
-#            k2 = nstprt.edges[eg-1].nodes[3] + jpb * nnode_p
-#            # if the uel line gets too long, continue on the next line
-#            if (len(nstline[-1]+str(k1)+str(k2)) >= uellinelength) or \
-#               (cntr >= uellinecount):
-#                nstline.append('')
-#                cntr = 0
-#            # add the nodes to the line
-#            nstline[-1] = nstline[-1]+str(k1)+','+str(k2)+','
-#            cntr        = cntr + 2
-#    # remove the last comma from the line
-#    nstline[-1] = nstline[-1][:-1]
-#    # write all original nodes of the nset
-#    for nstl in nstline:
-#        uel_input.write(nstl+'\n')
-## end assembly writing
-#uel_input.write('*End Assembly\n')
+    
+#**** write Material ****
+for mline in materials:
+    uel_input.write(str(mline[0:]))
 
 #**** write fixed BCDs ****
 for bline in bcds:
-    uel_input.write('*Boundary\n')
     uel_input.write(str(bline[0:]))
 
 #**** write step ****
