@@ -612,12 +612,19 @@ fnm_nodes.write('end subroutine set_fnm_nodes\n')
 nedgett = nplyblk * nedge_p  
 # write fnm_edges.f90 header
 fnm_edges.write('subroutine set_fnm_edges()            \n')
+fnm_edges.write('use fedge_module,     only: update    \n')
 fnm_edges.write('use edge_list_module, only: edge_list \n')
 fnm_edges.write('                                      \n')
 fnm_edges.write('  integer :: nedge=0                  \n')
 fnm_edges.write('                                      \n')
 fnm_edges.write('  nedge='+str(nedgett)+'              \n')
 fnm_edges.write('  allocate(edge_list(nedge))          \n')
+
+# update bcd edges
+for bcdset in fnmparts[0].nsets:
+    for jedge in bcdset.edges:
+        fnm_edges.write('  call update(edge_list('+str(jedge)+'), constrained=.true.) \n')
+
 fnm_edges.write('\n')
 fnm_edges.write('end subroutine set_fnm_edges\n')
 
