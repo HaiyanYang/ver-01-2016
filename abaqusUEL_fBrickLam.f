@@ -95,10 +95,10 @@ use output_module,       only: outdir, output
       
       call set_fnm_predelam
       
-      ! open a file 
-      open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-      write(110,'(1X, a)')'reach mark 1'
-      close(110)
+     ! ! open a file 
+     ! open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+     ! write(110,'(1X, a)')'reach mark 1'
+     ! close(110)
       
   
   ! start of increment
@@ -244,31 +244,19 @@ use output_module
 !~    end if
 !~  end if
 
-  ! debug
-  ! open a file 
-  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-  write(110,'(1X, a)')'reach mark a'//trim(cjelem)
-  close(110)
+!  ! debug
+!  ! open a file 
+!  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+!  write(110,'(1X, a)')'reach mark a'//trim(cjelem)
+!  close(110)
  
   ! extract the node connec of this elem
   node_cnc(:) = elem_node_connec(:,ajelem)
-  
-  ! debug
-  ! open a file 
-  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-  write(110,'(1X, a)')'reach mark b'//trim(cjelem)
-  close(110)
   
   ! extract the edge connec of this elem
   nedge = size(elem_edge_connec(:,ajelem))
   allocate(edge_cnc(nedge))
   edge_cnc(:) = elem_edge_connec(:,ajelem)
-  
-  ! debug
-  ! open a file 
-  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-  write(110,'(1X, a)')'reach mark c'//trim(cjelem)
-  close(110)
 
   ! extract passed-in nodal solutions obtained by Abaqus Solver
   do j=1, nnode
@@ -279,32 +267,20 @@ use output_module
   do j=1, nnode
     call update(node_list(node_cnc(j)),u=uj(:,j))
   end do
-  
-  ! debug
-  ! open a file 
-  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-  write(110,'(1X, a)')'reach mark d'//trim(cjelem)
-  close(110)
 
   ! extract nodes and edge status from global node and edge lists
   nodes = node_list(node_cnc)
-  ! debug
-  ! open a file 
-  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-  write(110,'(1X, a)')'reach mark e'//trim(cjelem)
-  close(110)
-  
   allocate(edges(nedge))
   edges = edge_list(edge_cnc)
   
   !~! debug, check the input to elem
   !~call output(kstep,jelem*1000+kinc,outdir)
 
-  ! debug
-  ! open a file 
-  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-  write(110,'(1X, a)')'reach mark 2'
-  close(110)
+!  ! debug
+!  ! open a file 
+!  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+!  write(110,'(1X, a)')'reach mark 2'
+!  close(110)
   
   ! check if this elem belongs to the predelam elem set, predelam_elems
   ! if so, update variable predelam
@@ -328,19 +304,19 @@ use output_module
     call EXIT_FUNCTION
   end if
 
-  ! open a file 
-  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-  write(110,'(1X, a)')'reach mark 3'
-  close(110)
+!  ! open a file 
+!  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+!  write(110,'(1X, a)')'reach mark 3'
+!  close(110)
 
   ! update to global lists
   node_list(node_cnc) = nodes
   edge_list(edge_cnc) = edges
   
-  ! open a file 
-  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
-  write(110,'(1X, a)')'reach mark 4'
-  close(110)
+!  ! open a file 
+!  open(110, file=trim(outdir)//'record.dat', status="replace", action="write")
+!  write(110,'(1X, a)')'reach mark 4'
+!  close(110)
 
   ! in the end, pass Kmat and Fvec to Abaqus UEL amatrx and rhs
   amatrx   =  Kmat
