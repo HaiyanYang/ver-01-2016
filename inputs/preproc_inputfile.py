@@ -218,14 +218,15 @@ for jp in jparts:
             sys.exit()
         
         # report error if multiple elset defs exist in this fnm part
-        if (len(jlsets) != 1):
+        if (len(jlsets) > 1):
             print("ERROR: exactly ONE elset, predelam, is supported in fnm part!")
             sys.exit()
         
         # report error if the elset is not named predelam
-        if not ('predelam' in All_lines[jlsets[0]]):
-            print("ERROR: only the elset named predelam is supported in fnm part!")
-            sys.exit()
+        if (len(jlsets) == 1):
+            if not ('predelam' in All_lines[jlsets[0]]):
+                print("ERROR: only the elset named predelam is supported in fnm part!")
+                sys.exit()
         
         # read real(original) nodes of this part 
         for jn in range(jnode+1,jpend):
@@ -400,50 +401,53 @@ for jp in jparts:
             fnmparts[-1].nsets[-1] = nst 
         
         # read the predelam elset of the fnm part
-        jels = jlsets[0]
-        eline = All_lines[jels].rstrip()
-        # remove 'generate' in the line if present
-        if ('generate' in All_lines[jels]):
-            eline = All_lines[jels][0:-11]
-        # add this elset in the list of elsets in this fpart
-        fnmparts[-1].elsets.append( elset( name=eline, elems=[] ) )
-        # read elems in the elset
-        # if generate is used, then calculate all elems;
-        # otherwise, read all elems directly
-        if ('generate' in All_lines[jels]):
-            eline = All_lines[jels+1]
-            el = []
-            for t in eline.split(','):
-                try:
-                    el.append(int(t))
-                except ValueError:
-                    pass
-            els = el[0] # start elem
-            elf = el[1] # final elem
-            try:
-                itv = el[2] # interval
-            except IndexError:
-                itv = 1
-            for e in range(els,elf+1,itv):
-                fnmparts[-1].elsets[-1].elems.append(e)
-        else:
-            # read the lines of nodes in this nset
-            el = [] # list of elems to be filled
-            for e in range(jels+1,jpend):
-                eline = All_lines[e]
-                # break out of loop if end of section encountered
-                if ('*' in eline):
-                    break
+        for jels in jlsets:
+            eline = All_lines[jels].rstrip()
+            # remove 'generate' in the line if present
+            if ('generate' in All_lines[jels]):
+                eline = All_lines[jels][0:-11]
+            # add this elset in the list of elsets in this fpart
+            fnmparts[-1].elsets.append( elset( name=eline, elems=[] ) )
+            # read elems in the elset
+            # if generate is used, then calculate all elems;
+            # otherwise, read all elems directly
+            if ('generate' in All_lines[jels]):
+                eline = All_lines[jels+1]
+                el = []
                 for t in eline.split(','):
                     try:
                         el.append(int(t))
                     except ValueError:
                         pass
-            fnmparts[-1].elsets[-1].elems.extend(el)
-        # store the elset in the predelam list
-        predelam.append(fnmparts[-1].elsets[-1])
+                els = el[0] # start elem
+                elf = el[1] # final elem
+                try:
+                    itv = el[2] # interval
+                except IndexError:
+                    itv = 1
+                for e in range(els,elf+1,itv):
+                    fnmparts[-1].elsets[-1].elems.append(e)
+            else:
+                # read the lines of nodes in this nset
+                el = [] # list of elems to be filled
+                for e in range(jels+1,jpend):
+                    eline = All_lines[e]
+                    # break out of loop if end of section encountered
+                    if ('*' in eline):
+                        break
+                    for t in eline.split(','):
+                        try:
+                            el.append(int(t))
+                        except ValueError:
+                            pass
+                fnmparts[-1].elsets[-1].elems.extend(el)
+            # store the elset in the predelam list
+            predelam.append(fnmparts[-1].elsets[-1])
 
-        
+# check if fnmparts is one
+if (len(fnmparts) != 1):
+    print("ERROR: exactly one fnm part is supported!")
+    sys.exit()        
 
 #==================================================
 # read assembly section:
