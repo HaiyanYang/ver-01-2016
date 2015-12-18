@@ -621,9 +621,26 @@ fnm_edges.write('  nedge='+str(nedgett)+'              \n')
 fnm_edges.write('  allocate(edge_list(nedge))          \n')
 
 # update bcd edges
-for bcdset in fnmparts[0].nsets:
-    for jedge in bcdset.edges:
-        fnm_edges.write('  call update(edge_list('+str(jedge)+'), constrained=.true.) \n')
+for nst in fnmparts[0].nsets:
+    # if all the real nodes in this nst are on the bot surface, then
+    # only store the bot plyblk nodes, DO NOT include the other plies
+    if all(n in fnmparts[0].botrnds for n in nst.rnodes):
+        pstart = 0
+        pend   = 1
+    # if all the real nodes in this nst are on the top surface, then
+    # only store the top plyblk nodes, DO NOT include the other plies
+    elif all(n in fnmparts[0].toprnds for n in nst.rnodes):
+        pstart = nplyblk-1
+        pend   = nplyblk
+    # otherwise, store corresponding nodes of all plyblks
+    else:
+        pstart = 0
+        pend   = nplyblk
+    # find the bcd edges
+    for jpb in range(pstart,pend):
+        for jeg in nst.edges:
+            jedge = jeg + jpb * nedge_p 
+            fnm_edges.write('  call update(edge_list('+str(jedge)+'), constrained=.true.) \n')
 
 fnm_edges.write('\n')
 fnm_edges.write('end subroutine set_fnm_edges\n')
@@ -859,6 +876,7 @@ for nst in nsets:
     elif all(n in fnmparts[0].toprnds for n in nst.rnodes):
         pstart = nplyblk-1
         pend   = nplyblk
+    # otherwise, store corresponding nodes of all plyblks
     else:
         pstart = 0
         pend   = nplyblk
