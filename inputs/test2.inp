@@ -5,7 +5,7 @@
 **
 ** PARTS
 **
-*Part, name=PART-1-MESH-1
+*Part, name=fnm
 *Node
 1, -1.0, -1.0, -0.125
 2, 1.0, -1.0, -0.125
@@ -22,6 +22,10 @@
 *Element, type=C3D8
 1, 1, 2, 4, 3, 7, 8, 10, 9
 2, 3, 4, 6, 5, 9, 10, 12, 11
+*Nset, nset=TOP
+ 5, 6, 11, 12
+*Nset, nset=BOTTOM
+ 1, 2, 7, 8
 *End Part
 **  
 **
@@ -29,28 +33,20 @@
 **
 *Assembly, name=Assembly
 **  
-*Instance, name=PART-1-MESH-1-1, part=PART-1-MESH-1
+*Instance, name=fnm-1, part=fnm
 *End Instance
 **
-*Nset, nset=BACK, instance=PART-1-MESH-1-1
- 1, 2, 3, 4, 5, 6
-*Nset, nset=FRONT, instance=PART-1-MESH-1-1
- 7, 8, 9, 10, 11, 12
-*Nset, nset=TOP, instance=PART-1-MESH-1-1
- 5, 6, 11, 12
-*Nset, nset=BOTTOM, instance=PART-1-MESH-1-1
- 1, 2, 7, 8
 *End Assembly
 ** 
 ** BOUNDARY CONDITIONS
 ** 
 ** Name: Disp-BC-2 Type: Displacement/Rotation
 *Boundary
-BOTTOM, 3, 3
-BOTTOM, 2, 2
-BOTTOM, 1, 1
-TOP, 3, 3
-TOP, 1, 1
+fnm-1.BOTTOM, 3, 3
+fnm-1.BOTTOM, 2, 2
+fnm-1.BOTTOM, 1, 1
+fnm-1.TOP, 3, 3
+fnm-1.TOP, 1, 1
 ** ----------------------------------------------------------------
 ** 
 ** STEP: tension
@@ -63,13 +59,8 @@ TOP, 1, 1
 ** 
 ** Name: Vel-BC-1 Type: Velocity/Angular velocity
 *Boundary, type=VELOCITY
-TOP, 2, 2, 1.
-** 
-** CONTROLS
-** 
-*Controls, reset
-*Controls, parameters=time incrementation
-3200, 4000, , 6000, 4800, 50, , 125, , , 
+fnm-1.TOP, 2, 2, 1.
+**
 ** 
 ** OUTPUT REQUESTS
 ** 

@@ -56,12 +56,7 @@ fnm-1.FRONT, 3, 3
 ** Name: Vel-BC-1 Type: Velocity/Angular velocity
 *Boundary, type=VELOCITY
 fnm-1.TOP, 2, 2, 1.
-** 
-** CONTROLS
-** 
-*Controls, reset
-*Controls, parameters=time incrementation
-1600, 2000, , 3000, 2400, 50, , 125, , , 
+**
 ** 
 ** OUTPUT REQUESTS
 ** 

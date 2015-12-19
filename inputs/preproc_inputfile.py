@@ -1,22 +1,26 @@
 ################################################################
 ################# Preprocessing for the FNM ####################
-##  writing fnm_nodes, fnm_edges and fnm_elems          ##
 ################################################################
 ##
 ##
 ################################################################
-##  so far, only works on models with a single part, meshed
+##  so far, only works on models with a single fnm part, meshed
 ##  with 3D brick-type elements (C3D8(R) or SC8(R)); it prepares
-##  a new input file and fnm modules with xlam element type only.
+##  a new input file and fnm modules with fBricklam type only.
 ################################################################
 ##
 ##
 ################################################################
 ##  Applicable abaqus input file:
-##  - single 3D part meshed with either C3D8(R) or SC8(R) elements
-##  - part definition can only include *Node and *Element
-##  - assembly definition can only include *Instance and *Nset
-##  - boundary conditions can only be applied to assembly node sets
+##  - multiple normal Abaqus parts allowed
+##  - single fnm part (named 'fnm') meshed with either C3D8(R) 
+##    or SC8(R) elements
+##  - fnm part definition can include *Node, *Element, *Nset and
+##    *Elset, elset=predelam
+##  - all nsets in the fnm must be defined for applying bcd
+##  - assembly definition can be relatively generic, except that
+##    new nsets of the nodes on the fnm part cannot be defined.
+##  - boundary conditions must be applied on the nsets
 ################################################################
 
 
