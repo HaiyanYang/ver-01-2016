@@ -630,25 +630,27 @@ fnm_edges.write('  allocate(edge_list(nedge))          \n')
 
 # update bcd edges
 for nst in fnmparts[0].nsets:
-    # if all the real nodes in this nst are on the bot surface, then
-    # only store the bot plyblk nodes, DO NOT include the other plies
-    if all(n in fnmparts[0].botrnds for n in nst.rnodes):
-        pstart = 0
-        pend   = 1
-    # if all the real nodes in this nst are on the top surface, then
-    # only store the top plyblk nodes, DO NOT include the other plies
-    elif all(n in fnmparts[0].toprnds for n in nst.rnodes):
-        pstart = nplyblk-1
-        pend   = nplyblk
-    # otherwise, store corresponding nodes of all plyblks
-    else:
-        pstart = 0
-        pend   = nplyblk
-    # find the bcd edges
-    for jpb in range(pstart,pend):
-        for jeg in nst.edges:
-            jedge = jeg + jpb * nedge_p 
-            fnm_edges.write('  call update(edge_list('+str(jedge)+'), constrained=.true.) \n')
+    # only constrain the edges in nst with keyword 'tie'
+    if ('tie' in nst.name):
+        # if all the real nodes in this nst are on the bot surface, then
+        # only store the bot plyblk nodes, DO NOT include the other plies
+        if all(n in fnmparts[0].botrnds for n in nst.rnodes):
+            pstart = 0
+            pend   = 1
+        # if all the real nodes in this nst are on the top surface, then
+        # only store the top plyblk nodes, DO NOT include the other plies
+        elif all(n in fnmparts[0].toprnds for n in nst.rnodes):
+            pstart = nplyblk-1
+            pend   = nplyblk
+        # otherwise, store corresponding nodes of all plyblks
+        else:
+            pstart = 0
+            pend   = nplyblk
+        # find the bcd edges
+        for jpb in range(pstart,pend):
+            for jeg in nst.edges:
+                jedge = jeg + jpb * nedge_p 
+                fnm_edges.write('  call update(edge_list('+str(jedge)+'), constrained=.true.) \n')
 
 fnm_edges.write('\n')
 fnm_edges.write('end subroutine set_fnm_edges\n')
@@ -902,18 +904,19 @@ for nst in nsets:
             # add the node no. to the line and update line count
             nstline[-1] = nstline[-1]+str(k)+','
             cntr        = cntr + 1
-        ## add the fl. nodes to the list one by one
-        #for eg in nst.edges:
-        #    k1 = fnmparts[0].edges[eg-1].nodes[2] + jpb * nnode_p
-        #    k2 = fnmparts[0].edges[eg-1].nodes[3] + jpb * nnode_p
-        #    # if the uel line gets too long, continue on the next line
-        #    if (len(nstline[-1]+str(k1)+str(k2)) >= uellinelength) or \
-        #       (cntr >= uellinecount):
-        #        nstline.append('')
-        #        cntr = 0
-        #    # add the nodes to the line
-        #    nstline[-1] = nstline[-1]+str(k1)+','+str(k2)+','
-        #    cntr        = cntr + 2
+        # add the fl. nodes to the list one by one, if it is not a tie nst
+        if not ('tie' in nst.name):
+            for eg in nst.edges:
+                k1 = fnmparts[0].edges[eg-1].nodes[2] + jpb * nnode_p
+                k2 = fnmparts[0].edges[eg-1].nodes[3] + jpb * nnode_p
+                # if the uel line gets too long, continue on the next line
+                if (len(nstline[-1]+str(k1)+str(k2)) >= uellinelength) or \
+                   (cntr >= uellinecount):
+                    nstline.append('')
+                    cntr = 0
+                # add the nodes to the line
+                nstline[-1] = nstline[-1]+str(k1)+','+str(k2)+','
+                cntr        = cntr + 2
     # remove the last comma from the line
     nstline[-1] = nstline[-1][:-1]
     # write all original nodes of the nset

@@ -268,10 +268,10 @@ end subroutine extract_fBrickPly_elem
 pure subroutine integrate_fBrickPly_elem (elem, nodes, edges, ply_angle, lam_mat, coh_mat,&
 & K_matrix, F_vector, istat, emsg)
 use parameter_module,         only : DP, MSGLENGTH, STAT_SUCCESS, STAT_FAILURE,&
-                              & ZERO, ONE, INTACT, TRANSITION_ELEM,            &
+                              & ZERO, ONE, HALF, INTACT, TRANSITION_ELEM,      &
                               & REFINEMENT_ELEM,  CRACK_TIP_ELEM,              &
                               & CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM
-use fnode_module,             only : fnode, extract
+use fnode_module,             only : fnode, extract, update
 use fedge_module,             only : fedge, extract
 use lamina_material_module,   only : lamina_material
 use cohesive_material_module, only : cohesive_material
@@ -322,7 +322,15 @@ use global_toolkit_module,    only : distance
     elem%local_clock  = GLOBAL_CLOCK
     elem%newpartition = .false.
   end if
-
+  
+  ! update nodal u on edges with bcd
+  do i = 1, NEDGE
+    call extract(edges(i), estat=estat, constrained=constrained)
+    ! if this edge is broken and constrained, change the K and F terms of nodes on this edge
+    if (constrained) then
+      call update_edge(iedge = i, estat=estat, nodes=nodes)
+    end if
+  end do
 
   !---------------------------------------------------------------------!
   !********** MAIN CALCULATIONS **********
@@ -453,8 +461,8 @@ use global_toolkit_module,    only : distance
   do i = 1, NEDGE
     call extract(edges(i), estat=estat, constrained=constrained)
     ! if this edge is broken and constrained, change the K and F terms of nodes on this edge
-    if (estat > INTACT .and. constrained) then
-      call constrain_edge(iedge = i, nodes=nodes, K=K_matrix, F=F_vector)
+    if (constrained) then
+      call constrain_edge(iedge = i, estat=estat, nodes=nodes, Kmat=K_matrix, Fvec=F_vector)
     end if
   end do
 
@@ -470,22 +478,17 @@ use global_toolkit_module,    only : distance
     F_vector = ZERO
   end subroutine clean_up
   
-  pure subroutine constrain_edge(iedge, nodes, K, F)
+  pure subroutine update_edge(iedge, estat, nodes)
     ! passed-in variables
     integer,     intent(in)    :: iedge
-    type(fnode), intent(in)    :: nodes
-    real(DP),    intent(inout) :: K, F
+    integer,     intent(in)    :: estat
+    type(fnode), intent(inout) :: nodes(:)
     ! local variables
     ! nodes on edges
     integer :: nd(4)
     ! nodal coords of nodes on edges, and interpolation factor lambda
-    real(DP) :: x1, x2, xc, lambda
-    ! T matrix, Kloc, Floc
-    real(DP) :: tmat(4*NDIM,2*NDIM)
-    real(DP) :: Kloc(4*NDIM,4*NDIM),  Floc(4*NDIM)
-    real(DP) :: Kloc2(4*NDIM,4*NDIM), Floc2(4*NDIM)
-    ! counters
-    integer :: i, j, k, l, nr, nc, nrl, nrl
+    real(DP) :: x1(NDIM), x2(NDIM), xc(NDIM), lambda
+    real(DP) :: u1(NDIM), u2(NDIM), uc(NDIM)
     
     ! initialize local variables
     nd = 0
@@ -493,86 +496,125 @@ use global_toolkit_module,    only : distance
     x2 = ZERO
     xc = ZERO
     lambda = ZERO
-    tmat   = ZERO
-    Kloc   = ZERO
-    Floc   = ZERO
-    Kloc2  = ZERO
-    Floc2  = ZERO
-    i   = 0
-    j   = 0
-    k   = 0
-    l   = 0
-    nr  = 0
-    nc  = 0
-    nrl = 0
-    ncl = 0
+    u1 = ZERO
+    u2 = ZERO
+    uc = ZERO
     
     nd(1) = NODES_ON_EDGES(1,iedge)
     nd(2) = NODES_ON_EDGES(2,iedge)
     nd(3) = NODES_ON_EDGES(3,iedge)
     nd(4) = NODES_ON_EDGES(4,iedge)
     
-    call extract(nodes(nd(1)), x=x1)
-    call extract(nodes(nd(2)), x=x2)
-    call extract(nodes(nd(3)), x=xc)
+    if (estat == INTACT) then
+      return
+      lambda = HALF
+    else
+      call extract(nodes(nd(1)), x=x1, u=u1)
+      call extract(nodes(nd(2)), x=x2, u=u2)
+      call extract(nodes(nd(3)), x=xc)
+      lambda = distance(x1,xc,NDIM)/distance(x1,x2,NDIM)
+    end if
     
-    lambda = distance(x1,xc,NDIM)/distance(x1,x2,NDIM)
+    uc = (ONE-lambda)*u1 + lambda*u2
     
-    ! fill tmat first two rows
-    do i = 1, 2*NDIM
-      tmat(i,i) = ONE
-    end do
-    ! fill tmat last two rows
-    do i = 3, 4
-      do j = 1, NDIM
-        nr = (i-1)*NDIM + j
-        nc = j
-        tmat(nr,nc) = ONE-lambda
-        nc = j + NDIM
-        tmat(nr,nc) = lambda 
+    call update(nodes(nd(3)), u=uc)
+    call update(nodes(nd(4)), u=uc)
+    
+  end subroutine update_edge
+  
+  pure subroutine constrain_edge(iedge, estat, nodes, Kmat, Fvec)
+    ! passed-in variables
+    integer,     intent(in)    :: iedge
+    integer,     intent(in)    :: estat
+    type(fnode), intent(in)    :: nodes(:)
+    real(DP),    intent(inout) :: Kmat(:,:), Fvec(:)
+    ! local variables
+    ! nodes on edges
+    integer :: nd(4)
+    ! nodal coords of nodes on edges, and interpolation factor lambda
+    real(DP) :: x1(NDIM), x2(NDIM), xc(NDIM), lambda
+    ! T matrix, Kloc, Floc
+    real(DP) :: tmat_r(NNODE,NNODE),tmat(NDOF,NDOF)
+    real(DP) :: Kloc(NDOF,NDOF), Floc(NDOF)
+    ! counters
+    integer :: i, j, k
+    
+    ! initialize local variables
+    nd = 0
+    x1 = ZERO
+    x2 = ZERO
+    xc = ZERO
+    lambda = ZERO
+    tmat_r = ZERO
+    tmat   = ZERO
+    Kloc   = ZERO
+    Floc   = ZERO
+    i   = 0
+    j   = 0
+    k   = 0
+    
+    nd(1) = NODES_ON_EDGES(1,iedge)
+    nd(2) = NODES_ON_EDGES(2,iedge)
+    nd(3) = NODES_ON_EDGES(3,iedge)
+    nd(4) = NODES_ON_EDGES(4,iedge)
+    
+    if (estat == INTACT) then
+      return
+      lambda = HALF
+    else
+      call extract(nodes(nd(1)), x=x1)
+      call extract(nodes(nd(2)), x=x2)
+      call extract(nodes(nd(3)), x=xc)
+      lambda = distance(x1,xc,NDIM)/distance(x1,x2,NDIM)
+    end if
+    
+    do i = 1, NNODE
+      do j = 1, NNODE
+        ! row of a constrained node
+        if ( i == nd(3) .or. i == nd(4) ) then
+          if (j == nd(1)) then
+            tmat_r(i,j) = ONE-lambda
+          else if (j == nd(2)) then
+            tmat_r(i,j) = lambda
+          end if
+        ! free node, diagonal unity
+        else
+          if (j == i) tmat_r(i,j) = ONE
+        end if
       end do
     end do
     
-    ! extract Kloc, Floc
-    do i = 1, 4
-      do j = 1, NDIM
-        ! row no. of ith node in Kloc and K
-        nrl = (   i -1)*NDIM + j
-        nr  = (nd(i)-1)*NDIM + j
-        ! extract K to Kloc
-        do k = 1, 4
-          do l = 1, NDIM
-            ncl = (   k -1)*NDIM + l
-            nc  = (nd(k)-1)*NDIM + l
-            Kloc(nrl,ncl) = K(nr,nc)
-          end do
+    do i = 1, NNODE
+      do j = 1, NNODE
+        do k = 1, NDIM
+          tmat((i-1)*NDIM+k,(j-1)*NDIM+k) = tmat_r(i,j)
         end do
-        ! extract F to Floc
-        Floc(nrl) = F(nr)
       end do
     end do
+        
+    ! calculate new Kloc and Floc
+    Kloc = matmul(transpose(tmat),matmul(Kmat,tmat))
+    Floc = matmul(transpose(tmat),Fvec)
+
     
-    Kloc2(1:2*NDIM,1:2*NDIM) = matmul(transpose(tmat),matmul(Kloc,tmat))
-    Floc2(1:2*NDIM)          = matmul(transpose(tmat),Floc)
+    ! fill in diagonal terms of node 3 and 4 in Kloc2
+!    do i = 3, 4
+!      do j = 1, NDIM
+!        l = (i-1)*NDIM+j
+!        Kloc2(l,l) = ONE
+!      end do
+!    end do
+    
+    ! extract u3 and u4
+!    call extract(nodes(nd(3)), u=u3)
+!    call extract(nodes(nd(4)), u=u4)
+!    
+!    Floc2(2*NDIM+1 : 3*NDIM) = u3(:)
+!    Floc2(3*NDIM+1 : 4*NDIM) = u4(:)
     
     ! update back to K and F
-    do i = 1, 4
-      do j = 1, NDIM
-        ! row no. of ith node in Kloc and K
-        nrl = (   i -1)*NDIM + j
-        nr  = (nd(i)-1)*NDIM + j
-        ! Kloc2 to K
-        do k = 1, 4
-          do l = 1, NDIM
-            ncl = (   k -1)*NDIM + l
-            nc  = (nd(k)-1)*NDIM + l
-            K(nr,nc) = Kloc2(nrl,ncl)
-          end do
-        end do
-        ! Floc2 to F
-        F(nr) = Floc2(nrl)
-      end do
-    end do
+    Kmat = Kloc
+    Fvec = Floc
     
   end subroutine constrain_edge
 
@@ -839,11 +881,11 @@ use global_toolkit_module, only : crack_elem_cracktip2d
       elem%crack_edges(2) = jbe2
       
       ! update other edges to constrained = true
-      do i = 1, NEDGE_SURF
-        if (i==jbe1 .or. i==jbe2) cycle
-        call update(edges(i),            constrained=.true.)
-        call update(edges(i+NEDGE_SURF), constrained=.true.)
-      end do
+      !do i = 1, NEDGE_SURF
+!        if (i==jbe1 .or. i==jbe2) cycle
+!        call update(edges(i),            constrained=.true.)
+!        call update(edges(i+NEDGE_SURF), constrained=.true.)
+!      end do
       
     end if
     
@@ -1272,11 +1314,11 @@ use global_toolkit_module,  only : crack_elem_centroid2d
       elem%crack_edges(2) = jbe2
       
       ! update other edges to constrained = true
-      do i = 1, NEDGE_SURF
-        if (i==jbe1 .or. i==jbe2) cycle
-        call update(edges(i),            constrained=.true.)
-        call update(edges(i+NEDGE_SURF), constrained=.true.)
-      end do
+!      do i = 1, NEDGE_SURF
+!        if (i==jbe1 .or. i==jbe2) cycle
+!        call update(edges(i),            constrained=.true.)
+!        call update(edges(i+NEDGE_SURF), constrained=.true.)
+!      end do
       
     end if
 

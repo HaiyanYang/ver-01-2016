@@ -55,9 +55,9 @@ contains
     real(DP), optional, intent(in)    :: phi
     logical,  optional, intent(in)    :: constrained
     
-    if (present(estat)) this_fedge%estat = estat    
-    if (present(phi))   this_fedge%phi   = phi      
-    if (present(phi))   this_fedge%constrained = constrained     
+    if (present(estat))       this_fedge%estat = estat    
+    if (present(phi))         this_fedge%phi   = phi      
+    if (present(constrained)) this_fedge%constrained = constrained     
 
   end subroutine update_fedge 
   
@@ -72,8 +72,8 @@ contains
     real(DP),   optional, intent(out) :: phi
     logical,    optional, intent(out) :: constrained
     
-    if(present(estat)) estat = this_fedge%estat
-    if(present(phi))   phi   = this_fedge%phi
+    if(present(estat))       estat = this_fedge%estat
+    if(present(phi))         phi   = this_fedge%phi
     if(present(constrained)) constrained = this_fedge%constrained
 
   end subroutine extract_fedge
