@@ -532,7 +532,7 @@ use global_toolkit_module,    only : distance
     ! nodes on edges
     integer :: nd(4)
     ! nodal coords of nodes on edges, and interpolation factor lambda
-    real(DP) :: x1(NDIM), x2(NDIM), xc(NDIM), lambda
+    real(DP) :: x1(NDIM), x2(NDIM), xc(NDIM), lambda, u3(NDIM), u4(NDIM)
     ! T matrix, Kloc, Floc
     real(DP) :: tmat_r(NNODE,NNODE),tmat(NDOF,NDOF)
     real(DP) :: Kloc(NDOF,NDOF), Floc(NDOF)
@@ -545,6 +545,8 @@ use global_toolkit_module,    only : distance
     x2 = ZERO
     xc = ZERO
     lambda = ZERO
+    u3 = ZERO
+    u4 = ZERO
     tmat_r = ZERO
     tmat   = ZERO
     Kloc   = ZERO
@@ -559,7 +561,7 @@ use global_toolkit_module,    only : distance
     nd(4) = NODES_ON_EDGES(4,iedge)
     
     if (estat == INTACT) then
-      return
+      !return
       lambda = HALF
     else
       call extract(nodes(nd(1)), x=x1)
@@ -595,22 +597,26 @@ use global_toolkit_module,    only : distance
     ! calculate new Kloc and Floc
     Kloc = matmul(transpose(tmat),matmul(Kmat,tmat))
     Floc = matmul(transpose(tmat),Fvec)
-
     
-    ! fill in diagonal terms of node 3 and 4 in Kloc2
-!    do i = 3, 4
-!      do j = 1, NDIM
-!        l = (i-1)*NDIM+j
-!        Kloc2(l,l) = ONE
-!      end do
-!    end do
+    ! dummy K for nd3 and 4 in Kloc
+    do i = 3, 4
+      do j = 1, NDIM
+        k = (nd(i)-1) * NDIM + j
+        Kloc(k,k) = ONE
+      end do
+    end do
     
     ! extract u3 and u4
 !    call extract(nodes(nd(3)), u=u3)
 !    call extract(nodes(nd(4)), u=u4)
-!    
-!    Floc2(2*NDIM+1 : 3*NDIM) = u3(:)
-!    Floc2(3*NDIM+1 : 4*NDIM) = u4(:)
+
+    ! update Floc
+!    do j = 1, NDIM
+!      k = (nd(3)-1) * NDIM + j
+!      Floc(k) = u3(j)
+!      k = (nd(4)-1) * NDIM + j
+!      Floc(k) = u4(j)
+!    end do
     
     ! update back to K and F
     Kmat = Kloc
