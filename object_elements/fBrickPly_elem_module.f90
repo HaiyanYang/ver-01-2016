@@ -324,12 +324,18 @@ use global_toolkit_module,    only : distance
   end if
   
   ! update nodal u on edges with bcd
+!  do i = 1, NEDGE
+!    call extract(edges(i), estat=estat, constrained=constrained)
+!    ! if this edge is broken and constrained, change the K and F terms of nodes on this edge
+!    if (constrained) then
+!      call update_edge(iedge = i, estat=estat, nodes=nodes)
+!    end if
+!  end do
+
   do i = 1, NEDGE
-    call extract(edges(i), estat=estat, constrained=constrained)
-    ! if this edge is broken and constrained, change the K and F terms of nodes on this edge
-    if (constrained) then
-      call update_edge(iedge = i, estat=estat, nodes=nodes)
-    end if
+    call extract(edges(i), constrained=constrained)
+    ! if this edge is constrained, exit loop
+    if (constrained) exit
   end do
 
   !---------------------------------------------------------------------!
@@ -437,6 +443,10 @@ use global_toolkit_module,    only : distance
       ! if the current partition is a new partition (not yet converged),
       ! suppress failure in subelems
       nofailure = elem%newpartition
+      
+      ! if this element is a constrained element (with an edge having a tie bcd)
+      ! then suppress failure of coh crack
+      if (constrained) nofailure = .true.
 
       ! integrate and assemble sub elems
       call integrate_assemble_subelems (elem, nodes, ply_angle, lam_mat, coh_mat, &
@@ -458,13 +468,13 @@ use global_toolkit_module,    only : distance
   !---------------------------------------------------------------------!
 
   ! apply constraints on edges with bcd
-  do i = 1, NEDGE
-    call extract(edges(i), estat=estat, constrained=constrained)
-    ! if this edge is broken and constrained, change the K and F terms of nodes on this edge
-    if (constrained) then
-      call constrain_edge(iedge = i, estat=estat, nodes=nodes, Kmat=K_matrix, Fvec=F_vector)
-    end if
-  end do
+!  do i = 1, NEDGE
+!    call extract(edges(i), estat=estat, constrained=constrained)
+!    ! if this edge is broken and constrained, change the K and F terms of nodes on this edge
+!    if (constrained) then
+!      call constrain_edge(iedge = i, estat=estat, nodes=nodes, Kmat=K_matrix, Fvec=F_vector)
+!    end if
+!  end do
 
   return
 
