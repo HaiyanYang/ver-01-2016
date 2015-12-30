@@ -650,7 +650,7 @@ for nst in fnmparts[0].nsets:
         for jpb in range(pstart,pend):
             for jeg in nst.edges:
                 jedge = jeg + jpb * nedge_p 
-                fnm_edges.write('  call update(edge_list('+str(jedge)+'), constrained=.true.) \n')
+                fnm_edges.write('  call update(edge_list('+str(jedge)+'), tie_bcd=.true.) \n')
 
 fnm_edges.write('\n')
 fnm_edges.write('end subroutine set_fnm_edges\n')

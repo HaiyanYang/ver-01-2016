@@ -272,7 +272,7 @@ use parameter_module,         only : DP, MSGLENGTH, STAT_SUCCESS, STAT_FAILURE,&
                               & REFINEMENT_ELEM,  CRACK_TIP_ELEM,              &
                               & CRACK_WAKE_ELEM, MATRIX_CRACK_ELEM
 use fnode_module,             only : fnode, extract, update
-use fedge_module,             only : fedge, extract
+use fedge_module,             only : fedge, extract, update
 use lamina_material_module,   only : lamina_material
 use cohesive_material_module, only : cohesive_material
 use global_clock_module,      only : GLOBAL_CLOCK, clock_in_sync
@@ -298,7 +298,7 @@ use global_toolkit_module,    only : distance
   ! integer counters
   integer :: i,j
   ! logical to see if an edge is tie_bcd
-  logical :: tie_bcd
+  logical :: tie_bcd, tie_done
   ! edge status var.
   integer :: estat
 
@@ -313,6 +313,7 @@ use global_toolkit_module,    only : distance
   msgloc          = ', integrate, fBrickPly_elem module'
   i = 0; j = 0
   tie_bcd         = .false.
+  tie_done        = .false.
   estat           = INTACT
 
   ! check if last iteration has converged; if so, the elem's current partition
@@ -324,13 +325,16 @@ use global_toolkit_module,    only : distance
   end if
   
   ! update nodal u on edges with bcd
-  do i = 1, NEDGE
-    call extract(edges(i), estat=estat, tie_bcd=tie_bcd)
-    ! if this edge is broken and tie_bcd, change the K and F terms of nodes on this edge
-    if (estat > INTACT .and. tie_bcd) then
-      call update_edge(iedge = i, nodes=nodes)
-    end if
-  end do
+  if (elem%curr_status > TRANSITION_ELEM) then
+    do i = 1, NEDGE
+      !if (.not.any(elem%crack_edges == i)) cycle
+      call extract(edges(i), estat=estat, tie_bcd=tie_bcd, tie_done=tie_done)
+      ! if this edge is broken and tie_bcd, change the K and F terms of nodes on this edge
+      if (estat > INTACT .and. tie_bcd) then
+        call update_edge(iedge = i, nodes=nodes)
+      end if
+    end do
+  end if
 
   !---------------------------------------------------------------------!
   !********** MAIN CALCULATIONS **********
@@ -462,13 +466,19 @@ use global_toolkit_module,    only : distance
   !---------------------------------------------------------------------!
 
   ! apply constraints on edges with bcd
-  do i = 1, NEDGE
-    call extract(edges(i), estat=estat, tie_bcd=tie_bcd)
-    ! if this edge is broken and tie_bcd, change the K and F terms of nodes on this edge
-    if (estat > INTACT .and. tie_bcd) then
-      call constrain_edge(iedge = i, nodes=nodes, Kmat=K_matrix, Fvec=F_vector)
-    end if
-  end do
+  if (elem%curr_status > TRANSITION_ELEM) then
+    do i = 1, NEDGE
+      !if (.not.any(elem%crack_edges == i)) cycle
+      call extract(edges(i), estat=estat, tie_bcd=tie_bcd, tie_done=tie_done)
+      ! if this edge is broken and tie_bcd, change the K and F terms of nodes on this edge
+      if (estat > INTACT .and. tie_bcd) then
+        !if (.not. tie_done) then
+          call constrain_edge(iedge = i, nodes=nodes, Kmat=K_matrix, Fvec=F_vector)
+          call update(edges(i), tie_done=.true.)
+        !end if
+      end if
+    end do
+  end if
 
   return
 
@@ -589,6 +599,26 @@ use global_toolkit_module,    only : distance
     ! calculate new Kloc and Floc
     Kloc = matmul(transpose(tmat),matmul(Kmat,tmat))
     Floc = matmul(transpose(tmat),Fvec)
+    
+    ! dummy K for nd3 and 4 in Kloc
+    !~do i = 3, 4
+    !~  do j = 1, NDIM
+    !~    k = (nd(i)-1) * NDIM + j
+    !~    Kloc(k,k) = ONE
+    !~  end do
+    !~end do
+    
+    ! extract u3 and u4
+!    call extract(nodes(nd(3)), u=u3)
+!    call extract(nodes(nd(4)), u=u4)
+
+    ! update Floc
+!    do j = 1, NDIM
+!      k = (nd(3)-1) * NDIM + j
+!      Floc(k) = u3(j)
+!      k = (nd(4)-1) * NDIM + j
+!      Floc(k) = u4(j)
+!    end do
     
     ! update back to K and F
     Kmat = Kloc

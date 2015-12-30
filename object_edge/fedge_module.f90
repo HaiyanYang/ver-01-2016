@@ -19,10 +19,10 @@ type, public :: fedge
   ! list of type components:
   ! - estat     : status of this edge
   ! - phi       : matrix crack angle w.r.t Direction-3
-  ! - constrained  : true if this edge is 
+  ! - tie_bcd  : true if this edge is subjected to tie constrain
   integer  :: estat = INTACT
   real(DP) :: phi   = ZERO
-  logical  :: constrained = .false.
+  logical  :: tie_bcd  = .false.
 end type fedge
 
 interface update
@@ -44,7 +44,7 @@ contains
 
 
 
-  pure subroutine update_fedge (this_fedge, estat, phi, constrained)
+  pure subroutine update_fedge (this_fedge, estat, phi, tie_bcd)
   ! Purpose:
   ! to update the components of this fedge; it is used both before and during
   ! analysis to set the initial component values and update the runtime 
@@ -53,28 +53,28 @@ contains
     type(fedge),        intent(inout) :: this_fedge
     integer,  optional, intent(in)    :: estat
     real(DP), optional, intent(in)    :: phi
-    logical,  optional, intent(in)    :: constrained
+    logical,  optional, intent(in)    :: tie_bcd
     
     if (present(estat))       this_fedge%estat = estat    
     if (present(phi))         this_fedge%phi   = phi      
-    if (present(constrained)) this_fedge%constrained = constrained     
+    if (present(tie_bcd))     this_fedge%tie_bcd = tie_bcd
 
   end subroutine update_fedge 
   
   
 
-  pure subroutine extract_fedge (this_fedge, estat, phi, constrained)
+  pure subroutine extract_fedge (this_fedge, estat, phi, tie_bcd)
   ! Purpose:
   ! to extract all the components of this fedge
   
     type(fedge),          intent(in)  :: this_fedge
     integer,    optional, intent(out) :: estat
     real(DP),   optional, intent(out) :: phi
-    logical,    optional, intent(out) :: constrained
+    logical,    optional, intent(out) :: tie_bcd
     
     if(present(estat))       estat = this_fedge%estat
     if(present(phi))         phi   = this_fedge%phi
-    if(present(constrained)) constrained = this_fedge%constrained
+    if(present(tie_bcd))     tie_bcd = this_fedge%tie_bcd
 
   end subroutine extract_fedge
 
