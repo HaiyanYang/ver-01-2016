@@ -83,12 +83,12 @@ uel_nodes = open(uelnodesfile,'w')
 uel_elems = open(uelelemsfile,'w')
 
 #***************************************************************
-#   Open Fortran modules to be written during pre-processing
+#   Open fnm input files to be written during pre-processing
 #***************************************************************
-fnm_nodes = open('fnm_nodes.f90','w')  # list of all nodes
-fnm_edges = open('fnm_edges.f90','w')  # list of all nodes
-fnm_elems = open('fnm_elems.f90','w')  # list of all elems
-fnm_predelam = open('fnm_predelam.f90','w') # list of all predelam elems and the predelam interf
+fnm_nodes = open('fnm_nodes.txt','w')  # list of all nodes
+fnm_edges = open('fnm_edges.txt','w')  # list of all nodes
+fnm_elems = open('fnm_elems.txt','w')  # list of all elems
+fnm_predelam = open('fnm_predelam.txt','w') # list of all predelam elems and the predelam interf
 
 
 
@@ -552,16 +552,8 @@ nnodein = nedge_p
 # find the total no. of nodes in this mesh
 nnodett = nplyblk * nnode_p + (nplyblk-1) * nnodein
 
-# write fnm_nodes.f90 header
-fnm_nodes.write('subroutine set_fnm_nodes()            \n')
-fnm_nodes.write('use parameter_module, only: DP, ZERO  \n')
-fnm_nodes.write('use node_list_module, only: node_list \n')
-fnm_nodes.write('use fnode_module,     only: update    \n')
-fnm_nodes.write('                                      \n')
-fnm_nodes.write('  integer :: nnode=0                  \n')
-fnm_nodes.write('                                      \n')
-fnm_nodes.write('  nnode='+str(nnodett)+'              \n')
-fnm_nodes.write('  allocate(node_list(nnode))          \n')
+# write fnm_nodes 1st line: nnode
+fnm_nodes.write(str(nnodett)+' \n')
 
 for ipb in range(nplyblk):
     # calculate the bot and top real node z-coordinate
@@ -590,9 +582,7 @@ for ipb in range(nplyblk):
         (str(cntr)+', '+str(nd.x)+', '+str(nd.y)+', '+str(zz)+'\n')
         # write this node coords in fnm node_list
         fnm_nodes.write\
-        ('  call update(node_list('+str(cntr)+'),\
-        x=['+str(nd.x)+'_DP,'+str(nd.y)+'_DP,'+str(zz)+'_DP],\
-        u=[ZERO,ZERO,ZERO])\n')
+        (str(nd.x)+' '+str(nd.y)+' '+str(zz)+' \n')
 
 # write the additional nodes of interfaces if they're present
 if (nplyblk > 1):
@@ -602,31 +592,17 @@ if (nplyblk > 1):
         for cntr0 in range(nedge_p):
             cntr = nplyblk * nnode_p + jintf * nedge_p + cntr0 + 1
             # write this node coords in uel_nodes.inp
-            uel_nodes.write\
-            (str(cntr)+', 0.0, 0.0, 0.0\n')
+            uel_nodes.write(str(cntr)+', 0.0, 0.0, 0.0\n')
             # write this node coords in fnm node_list
-            fnm_nodes.write\
-            ('  call update(node_list('+str(cntr)+'),\
-            x=[ZERO,ZERO,ZERO],\
-            u=[ZERO,ZERO,ZERO])\n')
+            fnm_nodes.write('0.0 0.0 0.0 \n')
             
-fnm_nodes.write('\n')
-fnm_nodes.write('end subroutine set_fnm_nodes\n')
 
 #***************************************************************
 #       write edges
 #*************************************************************** 
 # find the total no. of edges in this mesh
 nedgett = nplyblk * nedge_p  
-# write fnm_edges.f90 header
-fnm_edges.write('subroutine set_fnm_edges()            \n')
-fnm_edges.write('use fedge_module,     only: update    \n')
-fnm_edges.write('use edge_list_module, only: edge_list \n')
-fnm_edges.write('                                      \n')
-fnm_edges.write('  integer :: nedge=0                  \n')
-fnm_edges.write('                                      \n')
-fnm_edges.write('  nedge='+str(nedgett)+'              \n')
-fnm_edges.write('  allocate(edge_list(nedge))          \n')
+fnm_edges.write(str(nedgett)+' \n')
 
 # update bcd edges
 for nst in fnmparts[0].nsets:
@@ -650,10 +626,9 @@ for nst in fnmparts[0].nsets:
         for jpb in range(pstart,pend):
             for jeg in nst.edges:
                 jedge = jeg + jpb * nedge_p 
-                fnm_edges.write('  call update(edge_list('+str(jedge)+'), tie_bcd=.true.) \n')
-
-fnm_edges.write('\n')
-fnm_edges.write('end subroutine set_fnm_edges\n')
+                fnm_edges.write(str(jedge)+' \n')
+# mark end of file with -1
+fnm_edges.write('-1 \n')
 
 #***************************************************************
 #       write elems
@@ -676,41 +651,14 @@ elnndtt_l = elnndrf_l + elnndin_l
 # find the no. of edges in an elem of the laminate
 elnedge_l = elnedge_p * nplyblk
 
-fnm_elems.write('subroutine set_fnm_elems()                                 \n')
-fnm_elems.write('use parameter_module,      only: DP                        \n')
-fnm_elems.write('use elem_list_module,      only: layup, elem_list,&        \n') 
-fnm_elems.write('                      & elem_node_connec, elem_edge_connec \n')
-fnm_elems.write('use fBrickLam_elem_module, only: plyblock_layup, set       \n') 
-fnm_elems.write('                                                           \n') 
-fnm_elems.write('  integer :: nelem   = 0                                   \n') 
-fnm_elems.write('  integer :: elnnode = 0                                   \n') 
-fnm_elems.write('  integer :: elnedge = 0                                   \n')  
-fnm_elems.write('  integer :: nplyblk = 0                                   \n')
-fnm_elems.write('  integer, allocatable :: nodecnc(:), edgecnc(:)           \n')
-fnm_elems.write('                                                           \n')
-fnm_elems.write('  nelem   ='+str(nelemtt)+'                                \n')
-fnm_elems.write('  elnnode ='+str(elnndtt_l)+'                              \n')
-fnm_elems.write('  elnedge ='+str(elnedge_l)+'                              \n')
-fnm_elems.write('  nplyblk ='+str(nplyblk)+'                                \n')
-fnm_elems.write('  allocate(elem_list(nelem))                               \n')
-fnm_elems.write('  allocate(elem_node_connec(elnnode,nelem))                \n')
-fnm_elems.write('  allocate(elem_edge_connec(elnedge,nelem))                \n')
-fnm_elems.write('  allocate(nodecnc(elnnode))                               \n')
-fnm_elems.write('  allocate(edgecnc(elnedge))                               \n')
-fnm_elems.write('  allocate(layup(nplyblk))                                 \n')
-fnm_elems.write('  nodecnc = 0                                              \n')
-fnm_elems.write('  edgecnc = 0                                              \n')
-fnm_elems.write('                                                           \n')
+fnm_elems.write(str(nelemtt)+' '+str(elnndtt_l)+' '+str(elnedge_l)+' \n')
+
+fnm_elems.write(str(nplyblk)+' \n')
 # write layup array
 for jpb in range(nplyblk):
     angle  = str(blklayup[jpb].angle)
     nplies = str(blklayup[jpb].nplies)
-    if '.' in angle:
-        angle = angle+'_DP'
-    else:
-        angle = angle+'._DP'
-    fnm_elems.write(' layup('+str(jpb+1)+')=plyblock_layup(angle='+angle+',nplies='+nplies+') \n')
-fnm_elems.write('                                                           \n')
+    fnm_elems.write(angle+' '+nplies+' \n')
 
 for jel in range(nelemtt):
     elnds_p = []
@@ -751,64 +699,37 @@ for jel in range(nelemtt):
         # add the node no. to the line and update line count
         eline[-1] = eline[-1]+str(k)+','
         cntr      = cntr + 1
-        # if the fnm line gets too long, continue on the next line
-        if (len(fline[-1]+str(k)) >= fnmlinelength):
-            fline.append('')
-        # add the node no. to the line
-        fline[-1] = fline[-1]+str(k)+','
+        # add the node no. to the fnm line 
+        fline[0] = fline[0]+str(k)+' '
     # remove the last comma from the eline
     eline[-1] = eline[-1][:-1]
-    # remove the last comma from the fline
-    fline[-1] = fline[-1][:-1]
     
     #** edge cnc
     gline = ['']  # edge cnc dataline for fnm_elems
     # add the node no. to the line one by one
     for k in elegs_l:
-        # if the fnm line gets too long, continue on the next line
-        if (len(gline[-1]+str(k)) >= fnmlinelength):
-            gline.append('')
         # add the node no. to the line
-        gline[-1] = gline[-1]+str(k)+','
-    # remove the last comma from the fline
-    gline[-1] = gline[-1][:-1]
+        gline[0] = gline[0]+str(k)+' '
     
     # write the line of elem node connec
     for l in eline:
         uel_elems.write(l+'\n')
         
-    # set this elem in fnm_elems subroutine
-    fnm_elems.write('\n')
+    # write this elem in fnm_elems
     # write nodecnc array
-    fnm_elems.write('  nodecnc=[ &\n')
-    for l in fline:
-        fnm_elems.write('& '+l+' &\n')
-    fnm_elems.write('& ]\n')
+    fnm_elems.write(fline[0]+' \n')
     # write edgecnc array
-    fnm_elems.write('  edgecnc=[ &\n')
-    for l in gline:
-        fnm_elems.write('& '+l+' &\n')
-    fnm_elems.write('& ]\n')
-    fnm_elems.write('  call set(elem_list('+str(jel+1)+'), NPLYBLKS='+str(nplyblk)+')\n')
-    # write elem_node_connec array
-    fnm_elems.write('  elem_node_connec(:,'+str(jel+1)+')=nodecnc(:)\n')
-    # write elem_edge_connec array
-    fnm_elems.write('  elem_edge_connec(:,'+str(jel+1)+')=edgecnc(:)\n')
-    fnm_elems.write('\n')
+    fnm_elems.write(gline[0]+' \n')
 
-fnm_elems.write('end subroutine set_fnm_elems\n')
 
 
 #***************************************************************
 #       write predelam
 #*************************************************************** 
-# write fnm_predelam.f90 header
-fnm_predelam.write('subroutine set_fnm_predelam()         \n')
-fnm_predelam.write('use predelam_list_module, only: predelam_elems, predelam_interf \n')
-fnm_predelam.write('                                      \n')
-fnm_predelam.write('  integer :: npdelem                  \n')
-fnm_predelam.write('                                      \n')
-
+# if no predelam, write 0 in fnm_predelam
+if (len(predelam) == 0):
+    fnm_predelam.write('0 \n')
+    
 # check if there is only ONE predelam
 if (len(predelam) > 1):
     print("ERROR: more than one predelam is not yet supported!")
@@ -817,14 +738,7 @@ if (len(predelam) > 1):
 # write the elem indices in the predelam elset
 for pd in predelam:
     npdelem = len(pd.elems)
-    fnm_predelam.write('  npdelem='+str(npdelem)+'              \n')
-    fnm_predelam.write('\n')
-    fnm_predelam.write('  allocate(predelam_elems(npdelem))     \n')
-    fnm_predelam.write('  allocate(predelam_interf)             \n')
-    fnm_predelam.write('\n')
-    # write all elems in the predelam elset
-    for j,jel in enumerate(pd.elems):
-        fnm_predelam.write('  predelam_elems('+str(j+1)+')='+str(jel)+'\n')
+    fnm_predelam.write(str(npdelem)+' \n')
     # ask for the predelam interface no.
     pdinterf = \
     input('Enter the pre-delamination interface, \
@@ -833,12 +747,10 @@ for pd in predelam:
         pdinterf = \
         input('Enter the pre-delamination interface, \
         1 means the first interface from the bottom (positive integer number):')
-    fnm_predelam.write('\n')
-    fnm_predelam.write('  predelam_interf='+str(pdinterf)+'\n')
-
-fnm_predelam.write('\n')
-fnm_predelam.write('end subroutine set_fnm_predelam\n') 
-
+    fnm_predelam.write(str(pdinterf)+' \n')
+    # write all elems in the predelam elset
+    for jel in pd.elems:
+        fnm_predelam.write(str(jel)+' \n')
 
 #***************************************************************
 #       write uel input file

@@ -41,8 +41,9 @@ include 'outputs/output_module.f90'
 subroutine uexternaldb(lop,lrestart,time,dtime,kstep,kinc)
 use parameter_module,    only: DP, DIRLENGTH, MSG_FILE, EXIT_FUNCTION
 use global_clock_module, only: GLOBAL_CLOCK, set
-use input_module,        only: set_fnm_nodes, set_fnm_edges, set_fnm_elems, &
-                         &     set_fnm_materials, set_fnm_predelam
+use input_module,        only: indir, set_fnm_materials, &
+                         &     set_fnm_nodes, set_fnm_edges, &
+                         &     set_fnm_elems, set_fnm_predelam
 use output_module,       only: outdir, output
 
   implicit none
@@ -73,25 +74,26 @@ use output_module,       only: outdir, output
   case (0)
       ! get output directory (global variable defined in output module)
       outdir = ''
+      indir  = ''
       call getoutdir(workdir, lenworkdir)
       if (  DIRLENGTH < lenworkdir+len('/outputs/')  ) then
         write(MSG_FILE,*)'increase DIRLENGTH parameter to:',lenworkdir+len('/outputs/')
         call EXIT_FUNCTION
       end if
       outdir = trim(workdir)//'/outputs/'
-
+      indir  = trim(workdir)//'/inputs/'
 
       
       ! initialize global clock and list of nodes, edges, elems and materials
       call set(GLOBAL_CLOCK, curr_step=0, curr_inc=0)
       
+      call set_fnm_materials
+            
       call set_fnm_nodes
       
       call set_fnm_edges
       
       call set_fnm_elems
-      
-      call set_fnm_materials
       
       call set_fnm_predelam
       

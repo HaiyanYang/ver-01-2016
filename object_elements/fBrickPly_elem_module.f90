@@ -444,7 +444,7 @@ use global_toolkit_module,    only : distance
       nofailure = elem%newpartition
       
       ! if this is a tie_elem, then nofailure is always true
-      if (tie_elem) nofailure = .true.
+      !if (tie_elem) nofailure = .true.
 
       ! integrate and assemble sub elems
       call integrate_assemble_subelems (elem, nodes, ply_angle, lam_mat, coh_mat, &
