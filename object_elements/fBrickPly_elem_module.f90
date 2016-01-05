@@ -299,6 +299,8 @@ use global_toolkit_module,    only : distance
   integer :: i,j
   ! logical to see if an edge is tie_bcd
   logical :: tie_bcd
+  ! logical to see if this elem has a tie_bcd edge
+  logical :: tie_elem
   ! edge status var.
   integer :: estat
 
@@ -313,6 +315,7 @@ use global_toolkit_module,    only : distance
   msgloc          = ', integrate, fBrickPly_elem module'
   i = 0; j = 0
   tie_bcd         = .false.
+  tie_elem        = .false.
   estat           = INTACT
 
   ! check if last iteration has converged; if so, the elem's current partition
@@ -330,6 +333,8 @@ use global_toolkit_module,    only : distance
     if (estat > INTACT .and. tie_bcd) then
       call update_edge(iedge = i, nodes=nodes)
     end if
+    ! if there is a tie_bcd edge, tie_elem is true
+    if (tie_bcd) tie_elem = .true.
   end do
 
   !---------------------------------------------------------------------!
@@ -437,6 +442,9 @@ use global_toolkit_module,    only : distance
       ! if the current partition is a new partition (not yet converged),
       ! suppress failure in subelems
       nofailure = elem%newpartition
+      
+      ! if this is a tie_elem, then nofailure is always true
+      if (tie_elem) nofailure = .true.
 
       ! integrate and assemble sub elems
       call integrate_assemble_subelems (elem, nodes, ply_angle, lam_mat, coh_mat, &
