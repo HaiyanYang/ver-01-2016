@@ -478,7 +478,8 @@ contains
         traction_lcl = matmul(dee_lcl, separation)
 
         !**** update intent(inout) dummy args before successful return ****
-        dee      = dee_lcl
+        !dee      = dee_lcl
+        dee = ZERO
         traction = traction_lcl
         ! sdv remains unchanged
         ! exit program
