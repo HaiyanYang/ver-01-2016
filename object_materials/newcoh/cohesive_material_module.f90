@@ -373,9 +373,9 @@ contains
     real(DP) :: dee_lcl(NST,NST)
     real(DP) :: traction_lcl(NST)
     integer  :: fstat
-    real(DP) :: dm, u0, uf
+    real(DP) :: dm, u0, uf, dm_tmp, u_eff
     real(DP) :: d_max_lcl
-    logical  :: is_closed_crack
+    logical  :: is_closed_crack, loading
 
 
     !**** initialize intent(out) & local variables ****
@@ -387,8 +387,11 @@ contains
     dm        = ZERO
     u0        = ZERO
     uf        = ZERO
+    dm_tmp    = ZERO
+    u_eff     = ZERO
     d_max_lcl = ZERO
     is_closed_crack = .false. ! default
+    loading   = .false.
 
     !**** check validity of non-pass dummy arguments with intent(in/inout) ****
     ! they include : dee, traction, sdv, separation, d_max
@@ -478,8 +481,7 @@ contains
         traction_lcl = matmul(dee_lcl, separation)
 
         !**** update intent(inout) dummy args before successful return ****
-        !dee      = dee_lcl
-        dee = ZERO
+        dee      = dee_lcl
         traction = traction_lcl
         ! sdv remains unchanged
         ! exit program
@@ -508,12 +510,12 @@ contains
 
     end select fstat_bfr_cohlaw
 
-
+    dm_tmp = dm
 
     ! call cohesive law, calculate damage variables (fstat, dm, u0, uf) based
     ! on this material's properties and current traction and separation vectors
     call cohesive_law (this_mat, fstat, dm, u0, uf, traction_lcl, separation, &
-    & d_max_lcl, istat, emsg)
+    & d_max_lcl, u_eff, istat, emsg)
 
     ! check if the cohesive law is run successfully;
     ! if not, return (in this case, emsg will show the cause of error)
@@ -521,6 +523,8 @@ contains
     ! assigned error-exit values before return
     if (istat == STAT_FAILURE) return
 
+    ! check if the damage is increased, if so, loading = true
+    if (dm > dm_tmp) loading = .true.
 
     !---------------------------------------------------------------------------
     ! after the cohesive law, the damage variables are already updated.
@@ -549,6 +553,11 @@ contains
         call deemat_3d (this_mat, dee_lcl, dm, is_closed_crack)
         ! update traction
         traction_lcl = matmul(dee_lcl, separation)
+        
+        ! use tangent D matrix if it is not yet failed and in the loading phase
+        if (fstat==COH_MAT_ONSET .and. loading) then
+          call offset_deemat_3d (this_mat, dee_lcl, dm, u0, u_eff, is_closed_crack)
+        end if
 
         !**** update intent(inout) dummy args before successful return ****
         dee       = dee_lcl
@@ -661,8 +670,131 @@ contains
 
 
 
+
+  pure subroutine offset_deemat_3d (this_mat, dee, dm, u0, u, is_closed_crack)
+  ! Purpose:
+  ! to calculate local stiffness matrix D
+  ! for 3D problem with the standard 3 displacement separations
+
+    ! dummy argument list:
+    ! - this_mat        : passed-in material object,     pass arg.
+    ! - dee             : local stiffness matrix,        to update
+    ! - dm              : degradation factor,            passed-in (optional)
+    ! - is_closed_crack : true if the crack is closed    passed-in (optional)
+    type(cohesive_material), intent(in)    :: this_mat
+    real(DP),                intent(inout) :: dee(:,:)
+    real(DP),                intent(in)    :: dm, u0, u
+    logical,                 intent(in)    :: is_closed_crack
+
+
+    !local var. list:
+    ! - Dnn, Dtt, Dll : penalty stiffness, standard notations
+    ! - crack_closed  : local copy of is_closed_crack
+    real(DP) :: Dnn, Dtt, Dll, u_offset, lambda_offset
+
+
+    ! initialize local variables
+    Dnn  = ZERO
+    Dtt  = ZERO
+    Dll  = ZERO
+    u_offset = ZERO
+    lambda_offset = ZERO
+
+    ! for private procedures used in the main procedure (ddsdde_cohesive),
+    ! the values of the input arguments are not checked.
+    ! they are assumed to be of valid values.
+
+    ! extract elastic muduli from passed-in material object
+    Dnn  = this_mat%modulus%Dnn
+    Dtt  = this_mat%modulus%Dtt
+    Dll  = this_mat%modulus%Dll
+    
+    u_offset = 1000._DP * u0
+    
+    lambda_offset = u / (u_offset + u)
+
+    ! apply fibre degradation if dm is present
+    ! degrade normal stiffness if crack is NOT closed
+    if (.not. is_closed_crack) Dnn = Dnn * (ONE - dm) * lambda_offset
+    Dtt = Dtt * (ONE - dm) * lambda_offset
+    Dll = Dll * (ONE - dm) * lambda_offset
+    ! do not degrade below residual stiffness
+    if (Dnn < RESIDUAL_MODULUS + SMALLNUM) Dnn = RESIDUAL_MODULUS
+    if (Dtt < RESIDUAL_MODULUS + SMALLNUM) Dtt = RESIDUAL_MODULUS
+    if (Dll < RESIDUAL_MODULUS + SMALLNUM) Dll = RESIDUAL_MODULUS
+
+    ! calculate D matrix terms
+    ! zero all terms first
+    dee = ZERO
+
+    dee(1,1) = Dnn
+    dee(2,2) = Dtt
+    dee(3,3) = Dll
+
+
+  end subroutine offset_deemat_3d
+
+
+
+
+  pure subroutine tgtdeemat_3d (this_mat, dee, u0, uf, is_closed_crack)
+  ! Purpose:
+  ! to calculate local tangent stiffness matrix D
+  ! for 3D problem with the standard 3 displacement separations
+
+    ! dummy argument list:
+    ! - this_mat        : passed-in material object,     pass arg.
+    ! - dee             : local stiffness matrix,        to update
+    ! - dm              : degradation factor,            passed-in (optional)
+    ! - is_closed_crack : true if the crack is closed    passed-in (optional)
+    type(cohesive_material), intent(in)    :: this_mat
+    real(DP),                intent(inout) :: dee(:,:)
+    real(DP),                intent(in)    :: u0, uf
+    logical,                 intent(in)    :: is_closed_crack
+
+
+    !local var. list:
+    ! - Dnn, Dtt, Dll : penalty stiffness, standard notations
+    real(DP) :: Dnn, Dtt, Dll
+
+
+    ! initialize local variables
+    Dnn  = ZERO
+    Dtt  = ZERO
+    Dll  = ZERO
+
+    ! for private procedures used in the main procedure (ddsdde_cohesive),
+    ! the values of the input arguments are not checked.
+    ! they are assumed to be of valid values.
+
+    ! extract elastic muduli from passed-in material object
+    Dnn  = this_mat%modulus%Dnn
+    Dtt  = this_mat%modulus%Dtt
+    Dll  = this_mat%modulus%Dll
+
+    ! degrade normal stiffness if crack is NOT closed
+    if (.not. is_closed_crack) then
+      Dnn = Dnn * (-u0/(uf-u0))
+    end if
+    Dtt = Dtt * (-u0/(uf-u0))
+    Dll = Dll * (-u0/(uf-u0))
+
+    ! calculate D matrix terms
+    ! zero all terms first
+    dee = ZERO
+
+    dee(1,1) = Dnn
+    dee(2,2) = Dtt
+    dee(3,3) = Dll
+
+
+  end subroutine tgtdeemat_3d
+
+
+
+
   pure subroutine cohesive_law (this_mat, fstat, dm, u0, uf, traction, &
-  & separation, d_max, istat, emsg)
+  & separation, d_max, u_eff, istat, emsg)
   ! Purpose:
   ! to update cohesive failure status, stiffness degradation factor and
   ! cohesive law variables according to a linear cohesive softening law;
@@ -685,6 +817,7 @@ contains
     real(DP),                 intent(inout) :: dm, u0, uf
     real(DP),                 intent(in)    :: traction(:), separation(:)
     real(DP),                 intent(in)    :: d_max
+    real(DP),                 intent(out)   :: u_eff
     integer,                  intent(out)   :: istat
     character(len=MSGLENGTH), intent(out)   :: emsg
 
@@ -705,9 +838,10 @@ contains
     real(DP) :: Gnc, Gtc, Glc, alpha
     real(DP) :: Gn,  Gt,  Gl
     real(DP) :: lambda_n, lambda_t, lambda_l
-    real(DP) :: Gmc, u_eff, T_eff, T0, dm_tmp
+    real(DP) :: Gmc, T_eff, T0, dm_tmp
 
     ! initialize intent(out) & local variables
+    u_eff    = ZERO
     istat    = STAT_SUCCESS
     emsg     = ''
     tau_n    = ZERO;  tau_t    = ZERO;  tau_l    = ZERO
@@ -718,7 +852,7 @@ contains
     Gn       = ZERO;  Gt       = ZERO;  Gl       = ZERO
     lambda_n = ZERO;  lambda_t = ZERO;  lambda_l = ZERO
     Gmc      = ZERO
-    u_eff    = ZERO;  T_eff    = ZERO;  T0       = ZERO
+    T_eff    = ZERO;  T0       = ZERO
     dm_tmp   = ZERO
 
 
