@@ -349,7 +349,7 @@ for jp in jparts:
             nline = All_lines[jns].rstrip()
             # remove 'generate' in the line if present
             if ('generate' in All_lines[jns]):
-                nline = All_lines[jns][0:-11]
+                nline = All_lines[jns].replace(', generate','').rstrip()
             # add this nset in the list of nsets in this fpart
             fnmparts[-1].nsets.append( nset( name=nline, rnodes=[], edges=[] ) )
             # read nodes in the nset
@@ -409,7 +409,7 @@ for jp in jparts:
             eline = All_lines[jels].rstrip()
             # remove 'generate' in the line if present
             if ('generate' in All_lines[jels]):
-                eline = All_lines[jels][0:-11]
+                eline = All_lines[jels].replace(', generate','').rstrip()
             # add this elset in the list of elsets in this fpart
             fnmparts[-1].elsets.append( elset( name=eline, elems=[] ) )
             # read elems in the elset

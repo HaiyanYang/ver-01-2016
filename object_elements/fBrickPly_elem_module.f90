@@ -867,11 +867,11 @@ use global_toolkit_module, only : crack_elem_cracktip2d
       elem%crack_edges(2) = jbe2
       
       ! update other edges to tie_bcd = true
-      !do i = 1, NEDGE_SURF
-!        if (i==jbe1 .or. i==jbe2) cycle
-!        call update(edges(i),            tie_bcd=.true.)
-!        call update(edges(i+NEDGE_SURF), tie_bcd=.true.)
-!      end do
+      do i = 1, NEDGE_SURF
+        if (i==jbe1 .or. i==jbe2) cycle
+        call update(edges(i),            tie_bcd=.true.)
+        call update(edges(i+NEDGE_SURF), tie_bcd=.true.)
+      end do
       
     end if
     
@@ -1300,11 +1300,11 @@ use global_toolkit_module,  only : crack_elem_centroid2d
       elem%crack_edges(2) = jbe2
       
       ! update other edges to tie_bcd = true
-!      do i = 1, NEDGE_SURF
-!        if (i==jbe1 .or. i==jbe2) cycle
-!        call update(edges(i),            tie_bcd=.true.)
-!        call update(edges(i+NEDGE_SURF), tie_bcd=.true.)
-!      end do
+      do i = 1, NEDGE_SURF
+        if (i==jbe1 .or. i==jbe2) cycle
+        call update(edges(i),            tie_bcd=.true.)
+        call update(edges(i+NEDGE_SURF), tie_bcd=.true.)
+      end do
       
     end if
 

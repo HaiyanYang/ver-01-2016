@@ -5,7 +5,7 @@
 **
 ** PARTS
 **
-*Part, name=Part-1
+*Part, name=fnm
 *Node
       1, -0.981128931,   3.01960444,           0.
       2,  -1.44141984,   2.82894564,           0.
@@ -12644,7 +12644,7 @@
 **
 *Assembly, name=Assembly
 **  
-*Instance, name=Part-1-1, part=Part-1
+*Instance, name=fnm-1, part=fnm
 *End Instance
 **  
 *End Assembly
@@ -12653,14 +12653,14 @@
 ** 
 ** Name: fixleft Type: Displacement/Rotation
 *Boundary
-Part-1-1.left, 1, 1
-Part-1-1.left, 2, 2
+fnm-1.left, 1, 1
+fnm-1.left, 2, 2
 ** Name: fixright Type: Displacement/Rotation
 *Boundary
-Part-1-1.right, 2, 2
+fnm-1.right, 2, 2
 ** Name: sym Type: Displacement/Rotation
 *Boundary
-Part-1-1.topsurf, 3, 3
+fnm-1.topsurf, 3, 3
 ** ----------------------------------------------------------------
 ** 
 ** STEP: tensile
@@ -12673,7 +12673,7 @@ Part-1-1.topsurf, 3, 3
 ** 
 ** Name: pullright Type: Velocity/Angular velocity
 *Boundary, type=VELOCITY
-Part-1-1.right, 1, 1, 1.
+fnm-1.right, 1, 1, 1.
 ** 
 ** OUTPUT REQUESTS
 ** 
